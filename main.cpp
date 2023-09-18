@@ -1,6 +1,4 @@
-#include <memory>  // for allocator, __shared_ptr_access
-#include <string>  // for string, basic_string, operator+, to_string
-#include <vector>  // for vector
+#include <iostream>
 
 #include "ftxui/component/component.hpp"
 #include "ftxui/component/screen_interactive.hpp"
@@ -10,109 +8,117 @@
 
 using namespace ftxui;
 
-Component wrap(const std::string& name, const Component& component)
+Component tlptui()
 {
-    return Renderer(component, [=]
+    class Impl : public ComponentBase
     {
-        return hbox(
-                {
-                    text("  "+name) | size(WIDTH, EQUAL, 15),
-                    component->Render()
-                });
-    });
-}
+    private:
+        int threshold;
+        std::string mode;
+        Element tlpInfo;
+        Element thresholdInfo;
+        Component tlpBox;
+        std::vector<std::string> tlpSelection = {"AC", "BAT"};
+        int selected = 0;
+        Component thresholdSlider;
+        Component container;
+    public:
+        Impl()
+        {
+            updateTLP();
+            updateThreshold();
+            tlpBox = Radiobox(&tlpSelection, &selected);
+            thresholdSlider = Slider("Threshold", &threshold, 0);
+            container = Container::Horizontal({tlpBox, thresholdSlider});
+            Add(container);
+        }
 
-Component updateTLP()
-{
-    Element tlp_stat = getTLPMode() == AC ? text("AC") : text("BAT");
-    return wrap("TLP mode:", Renderer([=]{return tlp_stat;}));
-}
-
-Component updateThreshold()
-{
-    int threshold = getCurrentThreshold();
-    return wrap("Threshold:", Renderer([=]{return text(std::to_string(threshold)+"%");}));
-}
-
-int main() {
-    auto screen = ScreenInteractive::TerminalOutput();
-
-    // --TLP-----
-    auto tlpInfo = updateTLP();
-
-    std::vector<std::string> tlp_list = {"AC", "BAT"};
-    int tlp_selected = getTLPMode();
-
-    auto tlp_toggle = Toggle(&tlp_list, &tlp_selected);
-    tlp_toggle = wrap("TLP:", tlp_toggle);
-
-    // --charge-threshold-----
-    auto threshold_info = updateThreshold();
-    int current_threshold = getCurrentThreshold();
-
-    auto threshold_slider = Slider("", &current_threshold);
-    threshold_slider = wrap("Threshold:", threshold_slider);
-
-    //------------------------
-    auto container = Container::Vertical(
+        bool updateTLP()
+        {
+            if (getTLPMode() == AC)
             {
-                    tlpInfo,
-                    tlp_toggle,
-                    threshold_info,
-                    threshold_slider
-            });
+                mode = "AC";
+            }
+            else
+            {
+                mode = "BAT";
+            }
+            tlpInfo = text(mode) | color(Color::Red);
+            return true;
+        }
 
-    auto layout = Renderer(container, [&]
+        bool updateThreshold()
         {
+            threshold = getCurrentThreshold();
+            thresholdInfo = text(std::to_string(threshold));
+            return true;
+        }
+
+        bool OnEvent(Event event) override
+        {
+            if (event.is_character())
+            {
+                if (event.character() == "a")
+                {
+                    setThreshold(threshold);
+                    if (selected == 0)
+                        setTLPMode(AC);
+                    else
+                        setTLPMode(BAT);
+                    updateTLP();
+                    updateThreshold();
+                    return true;
+                }
+            }
+            return ComponentBase::OnEvent(event);
+        }
+
+        Element Render() override
+        {
+            //info area
+            auto infoTitle = text("Info") | center;
+            auto controlTitle = text("control") | center;
             return vbox(
+            {
+                hbox(
+                {
+                    window(infoTitle, vbox(
                     {
-                        window(text("INFO") | center | color(Color::Green),
-                               vbox(tlpInfo->Render(),
-                                    threshold_info->Render())),
+                        hbox({text("TLP mode:       "), tlpInfo}),
+                        hbox({text("Bat threshold:  "), thresholdInfo})
+                    })),
+                    window(controlTitle, vbox(
+                    {
+                        text("Press A to apply settings"),
+                        text("press Q to exit")
+                    }))
+                }),
+                vbox(
+                {
+                    container->Render()
+                })
+            });
+        }
+        bool Focusable() const override
+        {
+            return true;
+        }
+    };
+    return Make<Impl>();
+}
 
-                        text(""),
-
-                        window(text("CONTROL") | center | color(Color::Red),
-                               vbox(separatorEmpty(),
-                                    tlp_toggle->Render(),
-                                    hbox(threshold_slider->Render() | flex,
-                                         text(std::to_string(current_threshold)+"%")),
-                                    separatorEmpty())),
-
-                    }) | size(WIDTH, EQUAL, 50);
-        });
-
-    auto event = CatchEvent(layout, [&](const Event& e)
+int main()
+{
+    if (!isRoot())
     {
-        if (e == Event::Character('q'))
-        {
-            screen.ExitLoopClosure()();
-            return true;
-        }
-        else if (e == Event::Character('a'))
-        {
-            tlp_selected == AC ? setTLPMode(AC) : setTLPMode(BAT);
-            setThreshold(current_threshold);
-
-            tlpInfo = updateTLP();
-            threshold_info = updateThreshold();
-            return true;
-        }
-        return false;
-    });
-
-    screen.Loop(event);
+        std::cout << "Root required! Please run as sudo.\n";
+        return 1;
+    }
+    auto screen = ScreenInteractive::FitComponent();
+    screen.Loop(tlptui());
 
     return 0;
 }
-
-
-
-
-
-
-
-
 
 
 

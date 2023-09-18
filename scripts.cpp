@@ -1,5 +1,9 @@
 #include "scripts.h"
 
+bool isRoot()
+{
+    return !getuid();
+}
 
 std::string getOutputFromStream(noshell::istream& stream)
 {

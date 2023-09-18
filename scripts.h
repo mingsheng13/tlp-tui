@@ -3,9 +3,12 @@
 
 #include<iostream>
 #include<string>
+#include <unistd.h>
 #include "noshell.hpp"
 
 enum TLP {AC = 0, BAT = 1};
+
+bool isRoot();
 
 TLP getTLPMode();
 
