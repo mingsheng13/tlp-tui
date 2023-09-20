@@ -10,6 +10,7 @@ using namespace ftxui;
 
 Component tlptui()
 {
+    const int INFOWIDTH = 25;
     class Impl : public ComponentBase
     {
     private:
@@ -19,7 +20,7 @@ Component tlptui()
         Element thresholdInfo;
         Component tlpBox;
         std::vector<std::string> tlpSelection = {"AC", "BAT"};
-        int selected = 0;
+        int selected;
         Component thresholdSlider;
         Component thresholdRenderer;
         std::vector<std::string> tab_values = {"TLP mode", "Threshold"};
@@ -32,16 +33,22 @@ Component tlptui()
         {
             updateTLP();
             updateThreshold();
+            threshold = getCurrentThreshold();
+            getTLPMode() == AC ? selected = 0 : selected = 1;
             tlpBox = Radiobox(&tlpSelection, &selected);
-            thresholdSlider = Slider("Threshold", &threshold, 0) | size(WIDTH, EQUAL, 30);
+            thresholdSlider = Slider("Threshold: ", &threshold, 0) | size(WIDTH, EQUAL, 30);
             thresholdRenderer = Renderer(thresholdSlider, [&]
             {
-                return hbox(
+                return vbox(
                 {
-                    thresholdSlider->Render(), text(std::to_string(threshold))
+                    separatorEmpty(),
+                    hbox(
+                    {
+                        thresholdSlider->Render(), text(std::to_string(threshold))
+                    })
                 });
             });
-            menu = Menu(&tab_values, &tabSelected);
+            menu = Menu(&tab_values, &tabSelected) | size(WIDTH, EQUAL, 15);
             tabContainer = Container::Tab(
             {
                 tlpBox,
@@ -109,11 +116,11 @@ Component tlptui()
                     {
                         hbox({text("TLP mode:       "), tlpInfo}),
                         hbox({text("Bat threshold:  "), thresholdInfo})
-                    })),
+                    })) |size(WIDTH, GREATER_THAN, INFOWIDTH),
                     window(navTitle, vbox(
                     {
                         text("Press A to apply settings"),
-                        text("press Q to exit")
+                        text("Press Q to exit")
                     }))
                 }),
                 window(controlTitle, hbox(
@@ -121,7 +128,7 @@ Component tlptui()
                     menu->Render(),
                     separator(),
                     tabContainer->Render()
-                }))
+                })) | size(HEIGHT, EQUAL, 5)
             });
         }
         bool Focusable() const override
