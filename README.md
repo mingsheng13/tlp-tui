@@ -4,7 +4,7 @@
 ## Dependency(1)
 - tlp
 #### ubuntu 
-    sudo apt-get tlp
+    sudo apt-get install tlp
 
 
 ## install and build
