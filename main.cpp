@@ -21,16 +21,38 @@ Component tlptui()
         std::vector<std::string> tlpSelection = {"AC", "BAT"};
         int selected = 0;
         Component thresholdSlider;
-        Component container;
+        Component thresholdRenderer;
+        std::vector<std::string> tab_values = {"TLP mode", "Threshold"};
+        int tabSelected = 0;
+        Component menu;
+        Component tabContainer;
+        Component horizontalContainer;
     public:
         Impl()
         {
             updateTLP();
             updateThreshold();
             tlpBox = Radiobox(&tlpSelection, &selected);
-            thresholdSlider = Slider("Threshold", &threshold, 0);
-            container = Container::Horizontal({tlpBox, thresholdSlider});
-            Add(container);
+            thresholdSlider = Slider("Threshold", &threshold, 0) | size(WIDTH, EQUAL, 30);
+            thresholdRenderer = Renderer(thresholdSlider, [&]
+            {
+                return hbox(
+                {
+                    thresholdSlider->Render(), text(std::to_string(threshold))
+                });
+            });
+            menu = Menu(&tab_values, &tabSelected);
+            tabContainer = Container::Tab(
+            {
+                tlpBox,
+                thresholdRenderer,
+            }, &tabSelected);
+            horizontalContainer = Container::Horizontal(
+            {
+                menu,
+                tabContainer
+            });
+            Add(horizontalContainer);
         }
 
         bool updateTLP()
@@ -77,6 +99,7 @@ Component tlptui()
         {
             //info area
             auto infoTitle = text("Info") | center;
+            auto navTitle = text("navigation") | center;
             auto controlTitle = text("control") | center;
             return vbox(
             {
@@ -87,16 +110,18 @@ Component tlptui()
                         hbox({text("TLP mode:       "), tlpInfo}),
                         hbox({text("Bat threshold:  "), thresholdInfo})
                     })),
-                    window(controlTitle, vbox(
+                    window(navTitle, vbox(
                     {
                         text("Press A to apply settings"),
                         text("press Q to exit")
                     }))
                 }),
-                vbox(
+                window(controlTitle, hbox(
                 {
-                    container->Render()
-                })
+                    menu->Render(),
+                    separator(),
+                    tabContainer->Render()
+                }))
             });
         }
         bool Focusable() const override
@@ -115,7 +140,15 @@ int main()
         return 1;
     }
     auto screen = ScreenInteractive::FitComponent();
-    screen.Loop(tlptui());
+    auto comp = tlptui();
+    auto component = CatchEvent(comp, [&](Event event) {
+        if (event == Event::Character('q')) {
+            screen.ExitLoopClosure()();
+            return true;
+        }
+        return false;
+    });
+    screen.Loop(component);
 
     return 0;
 }
