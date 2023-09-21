@@ -108,6 +108,7 @@ Component tlptui()
             auto infoTitle = text("Info") | center;
             auto navTitle = text("navigation") | center;
             auto controlTitle = text("control") | center;
+            threshold = std::clamp(threshold, 60, 100);
             return vbox(
             {
                 hbox(
